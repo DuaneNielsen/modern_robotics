@@ -7,8 +7,11 @@ Written in Pytorch by Duane Nielsen
 # install and run tests
 
 ```
-git checkout 
+git clone https://github.com/DuaneNielsen/modern_robotics.git
 cd modern_robotics
+python3 -n venv ./venv
+source ./venv/bin/activate
 pip install -e .[dev]
+pytest
 ```
 

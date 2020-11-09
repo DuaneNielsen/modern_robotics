@@ -138,7 +138,7 @@ def test_rotation_log():
         w = uncross_matrix(w)
         expected = normalize_angle(radians(to_degrees) - radians(from_degrees))
         plot_angle(from_degrees, to_degrees, normalize_angle(w[2] * theta), expected)
-        assert torch.allclose(w, torch.tensor(omega_hat))
+        assert torch.allclose(w, omega_hat)
         assert -0.0001 < normalize_angle(w[2] * theta) - expected < 0.0001
         R_exp = matrix_exp_rotation(w, theta)
         assert torch.allclose(R, R_exp, atol=atol)
@@ -174,7 +174,7 @@ def test_rotation_log():
         w = uncross_matrix(w)
         expected = normalize_angle(radians(to_degrees) - radians(from_degrees))
         plot_angle(from_degrees, to_degrees, normalize_angle(w[0] * theta), expected)
-        assert torch.allclose(w, torch.tensor(omega_hat))
+        assert torch.allclose(w, omega_hat)
         assert -0.0001 < normalize_angle(w[0] * theta) - expected < 0.0001
         R_exp = matrix_exp_rotation(w, theta)
         assert torch.allclose(R, R_exp, atol=atol)
@@ -233,7 +233,7 @@ def test_matrix_log():
     plt.xlim(left=0, right=10)
     plt.ylim(bottom=0, top=10)
     plt.gca().set_aspect('equal', adjustable='box')
-    plt.show()
+    plt.pause(2.0)
 
     assert torch.allclose(uncross_matrix(rotation(s)), torch.tensor([0, 0, 1.0]))
     assert torch.allclose(translation(s), torch.tensor([3.3660, -3.3660, 0]))
@@ -347,9 +347,9 @@ def test_3d_plot():
     fig = plt.figure()
     ax = plt.axes(projection='3d')
     # Data for a three-dimensional line
-    xline = trajectory[:, 0]
-    yline = trajectory[:, 1]
-    zline = trajectory[:, 2]
+    xline = trajectory[:, 0].numpy()
+    yline = trajectory[:, 1].numpy()
+    zline = trajectory[:, 2].numpy()
     ax.plot3D(xline, yline, zline, 'gray')
     plt.pause(2.0)
 
