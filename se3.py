@@ -247,11 +247,13 @@ def matrix_exp_screw(screw, thetadot):
     :param thetadot:
     :return:
     """
-    T = torch.zeros(4, 4)
+    if not isinstance(thetadot, torch.Tensor):
+        thetadot = torch.tensor([thetadot], dtype=torch.float)
+    T = torch.eye(4, 4)
     v = screw[3:6]
     R = matrix_exp_rotation(screw[0:3], thetadot)
     w = cross_matrix(screw[0:3])
-    G = thetadot * torch.eye(3, 3) + (1 - torch.cos(thetadot)) * w + (thetadot - torch.sin(thetadot)) * torch.matmul(w, w)
+    G = thetadot * torch.eye(3, 3) + (1.0 - torch.cos(thetadot)) * w + (thetadot - torch.sin(thetadot)) * torch.matmul(w, w)
     v = G.matmul(v)
     T[0:3, 0:3] = R
     T[0:3, 3] = v
