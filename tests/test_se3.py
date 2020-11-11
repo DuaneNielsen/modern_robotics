@@ -22,6 +22,10 @@ y_axis = torch.tensor((
 
 
 def test_transform():
+
+    def vector(x, y, z, dtype=torch.float):
+        return torch.tensor([x, y, z], dtype=dtype)
+
     Tsb = torch.tensor([
         [-1, 0, 0, 4],
         [0, 1, 0, 0.4],

@@ -2,6 +2,7 @@ import torch
 from math import sin, cos, pi, radians, degrees
 from se3 import *
 from matplotlib import pyplot as plt
+from vpython import cylinder, rate, vector
 
 
 def joint_transform(theta, l):
@@ -68,7 +69,6 @@ def test_simple_chain_denavit_hartenberg():
 
 def test_simple_chain():
 
-
     plot = Plot()
 
     L1 = 1.0
@@ -131,7 +131,6 @@ def test_simple_chain():
         V[0:3, 3] = twist[3:6]
         return V
 
-
     S1 = torch.tensor([0, 0, 1, 0,  0, 0], dtype=torch.float)
     S2 = torch.tensor([0, 0, 1, 0, -1, 0], dtype=torch.float)
     S3 = torch.tensor([0, 0, 1, 0, -2, 0], dtype=torch.float)
@@ -140,13 +139,24 @@ def test_simple_chain():
     assert torch.allclose(twist_matrix(S2), S2_book)
     assert torch.allclose(twist_matrix(S3), S3_book)
 
-    screws = torch.stack((S1, S2, S3))
+    def _v(tensor):
+        return vector(tensor[0], tensor[1], tensor[2])
 
-    def forward_kinematics(T, screws, angles):
-        for screw, angle in zip(screws, angles):
-           T = matrix_exp_screw(screw, angle).matmul(T)
-        return T
+    center = torch.tensor([
+        [0, 0, 0, 1],
+        [0, 0, 0.3, 0],
+    ], dtype=torch.float).T
 
+    def p(center):
+        return _v(body[0:3, 0])
+
+    def axis(center):
+        return _v(body[0:3, 1])
+
+    j1 = cylinder(axis=vector(0, 0, 0.2), radius=0.2, color=vector(0, 0, 1))
+    j2 = cylinder(axis=vector(0, 0, 0.2), radius=0.2, color=vector(0, 1, 1))
+    j3 = cylinder(axis=vector(0, 0, 0.2), radius=0.2, color=vector(0, 1, 0))
+    j4 = cylinder(axis=vector(0, 0, 0.2), radius=0.2, color=vector(1, 1, 0))
 
     t = 0.0
     while t < 4 * 3.1417:
@@ -159,16 +169,44 @@ def test_simple_chain():
         T2 = V1.matmul(J1)
         plot.joint(T2, 'c')
         assert torch.allclose(translation(T2_dh), translation(T2), atol=1e-6)
+        body = T2.matmul(center)
+        j2.pos = p(body)
+        j2.axis = axis(body)
 
         V2 = matrix_exp_screw(S2, t)
         T3 = V1.matmul(V2).matmul(J2)
         plot.joint(T3, 'r')
         assert torch.allclose(translation(T3_dh), translation(T3), atol=1e-6)
+        body = T3.matmul(center)
+        j3.pos = p(body)
+        j3.axis = axis(body)
 
         V3 = matrix_exp_screw(S3, t)
         T4 = V1.matmul(V2).matmul(V3).matmul(M)
         plot.joint(T4, 'b')
         assert torch.allclose(translation(T4_dh), translation(T4), atol=1e-6)
+        body = T4.matmul(center)
+        j4.pos = p(body)
+        j4.axis = axis(body)
 
         plot.update()
         t += 0.05
+
+
+def test_plot_sphere():
+    s = cylinder()
+    s.pos = vector(-10, 0, 0)
+    s.velocity = vector(10, 5, 0)
+
+    t = 0
+    dt = 0.01
+
+    while t < 10:
+
+        s.pos = s.pos + s.velocity * dt
+        t = t + dt
+        rate(abs(1.0 / dt))
+        if not -10.0 < s.pos.x < 10.0:
+            s.velocity.x = - s.velocity.x
+        if not 0.0 < s.pos.y < 19.0:
+            s.velocity.y = - s.velocity.y

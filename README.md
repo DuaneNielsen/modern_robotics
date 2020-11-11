@@ -4,6 +4,8 @@ Examples from [Modern Robotics](http://hades.mech.northwestern.edu/index.php/Mod
 
 Written in Pytorch by Duane Nielsen
 
+![Alt Text](resources/kinematics_demo.gif)
+
 # install and run tests
 
 ```

@@ -3,10 +3,6 @@ from math import pi
 import torch
 
 
-def vector(x, y, z, dtype=torch.float):
-    return torch.tensor([x, y, z], dtype=dtype)
-
-
 def homo(v):
     return torch.cat((v, torch.ones(1)))
 
