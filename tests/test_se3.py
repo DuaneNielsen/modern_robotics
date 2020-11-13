@@ -431,3 +431,24 @@ def test_car_twists():
     assert torch.allclose(Vb, adjoint(Tsb.inverse()).matmul(Vs))
     assert torch.allclose(Vs, inv_adjoint(Tsb.inverse()).matmul(Vb))
     assert torch.allclose(Vb, inv_adjoint(Tsb).matmul(Vs))
+
+
+def test_matrix_exp():
+
+    """ translate 1 unit/sec in y axis"""
+    s = torch.tensor([0, 0, 0, 0, 1, 0], dtype=torch.float)
+    t = matrix_exp_screw(s, 1.0)
+    assert t[1, 3].item() == 1.0
+
+    """ rotate at 1 rad/sec around z axis"""
+    s = torch.tensor([0.0, 0, 1.0, 0, 0, 0], dtype=torch.float)
+    t = matrix_exp_screw(s, 1.0)
+    frame = torch.tensor([
+        [0, 0, 0, 1],
+        [1, 0, 0, 1],
+        [0, 1, 0, 1],
+        [0, 0, 1, 1],
+    ], dtype=torch.float).T
+    frame = t.matmul(frame)
+    assert frame[1, 1].item() - sin(1.0) < 0.0001
+    assert frame[2, 2].item() - cos(1.0) < 0.0001

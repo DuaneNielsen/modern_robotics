@@ -2,7 +2,7 @@ import torch
 from math import sin, cos, pi, radians, degrees
 from se3 import *
 from matplotlib import pyplot as plt
-from vpython import sphere, cylinder, rate, vector, box, textures, canvas, scene
+from vpython import sphere, cylinder, rate, vector, box, textures, canvas, scene, compound, color
 
 def _v(tensor):
     return vector(tensor[0], tensor[1], tensor[2])
@@ -397,4 +397,101 @@ def test_6r_kinemetic_chain():
                 links_viz[i-3].axis = joints_viz[i].pos - joints_viz[i-1].pos
 
         rate(6)
+        t+= 0.05
+
+
+def test_rrprrr_open_chain():
+    """ modern robotics example 4.4"""
+
+    """ 
+    origin and 3 principle axis of a frame, homogenous co-ords,
+    such that F = T.matmul(F) where T is a transformation matrix and F is the frame
+    """
+    frame = torch.tensor([
+        [0, 0, 0, 1],
+        [1, 0, 0, 1],
+        [0, 1, 0, 1],
+        [0, 0, 1, 1],
+    ], dtype=torch.float).T
+
+    def origin(frame):
+        return _v(frame[0:3, 0])
+
+    def x_axis(frame):
+        return _v(frame[0:3, 1])
+
+    def y_axis(frame):
+        return _v(frame[0:3, 2])
+
+    def z_axis(frame):
+        return _v(frame[0:3, 3])
+
+    def tm(x=0.0, y=0.0, z=0.0, R=None):
+        t = torch.tensor([
+            [1, 0, 0, x],
+            [0, 1, 0, y],
+            [0, 0, 1, z],
+            [0, 0, 0, 1],
+        ], dtype=torch.float)
+        if R is not None:
+            t[0:3, 0:3] = R
+        return t
+
+    l1, l2 = 1.0, 1.0
+
+    screws = [
+        torch.tensor([0, 0, 1, 0, 0, 0], dtype=torch.float),
+        torch.tensor([1, 0, 0, 0, 0, 0], dtype=torch.float),
+        torch.tensor([0, 0, 0, 0, 1, 0], dtype=torch.float),
+        torch.tensor([0, 1, 0, 0, 0, 0], dtype=torch.float),
+        torch.tensor([1, 0, 0, 0, 0, -l1], dtype=torch.float),
+        torch.tensor([0, 1, 0, 0, 0, 0], dtype=torch.float),
+    ]
+
+    joints = [tm(), tm(), tm(), tm(), tm(0, l1, 0), tm(0, l1+l2, 0)]
+
+    canvas(width=1200, height=600)
+    joints_viz = [cylinder(axis=vector(0, 0, 0.2), radius=0.2, color=vector(0, 1.0, 0.3)) for _ in range(6)]
+    joints_facing = [z_axis, x_axis, y_axis, y_axis, x_axis, y_axis]
+
+    links_viz = [None, None]
+    links_viz += [cylinder(radius=0.1, color=vector(0.6, 0.6, 0.6))]
+    links_viz += [None]
+    links_viz += [cylinder(radius=0.1, color=vector(0.6, 0.6, 0.6)) for _ in range(2)]
+
+    handle = cylinder(size=vector(1, .2, .2), color=vector(0.72, 0.42, 0))
+
+    head = box(size=vector(.2, .6, .2), pos=vector(1.1, 0, 0), color=color.gray(.6))
+
+    hammer = compound([handle, head])
+    hammer.axis = vector(1, 1, 0)
+
+    t = 0.0
+
+    def id(t):
+        return t
+
+    while t < 6 * pi:
+
+        fs = [id, id, abs, id, id, id]
+        ts = [matrix_exp_screw(s, f(2 * sin(t * 0.5 * pi))) for s, f in zip(screws, fs)]
+
+        tb = tm()
+        prev_joint_pos = vector(0, 0, 0)
+
+        for tf, j, jv, jf, lv in zip(ts, joints, joints_viz, joints_facing, links_viz):
+            tb = tb.matmul(tf)
+            joint_frame = tb.matmul(j).matmul(frame)
+            jv.pos = origin(joint_frame)
+            jv.axis = (jf(joint_frame) - origin(joint_frame)) * 0.2
+            if lv:
+                lv.pos = prev_joint_pos
+                lv.axis = jv.pos - prev_joint_pos
+            prev_joint_pos = origin(joint_frame)
+
+        end_effector_frame = tb.matmul(joints[-1]).matmul(frame)
+        hammer.pos = origin(end_effector_frame)
+        hammer.axis = (y_axis(end_effector_frame) - origin(end_effector_frame)) * 0.2
+
+        rate(3)
         t+= 0.05

@@ -247,6 +247,9 @@ def matrix_exp_screw(screw, thetadot):
         thetadot = torch.tensor([thetadot], dtype=torch.float)
     T = torch.eye(4, 4)
     v = screw[3:6]
+    if torch.sum(screw[0:3]).item() == 0:
+        T[0:3, 3] = v * thetadot
+        return T
     R = matrix_exp_rotation(screw[0:3], thetadot)
     w = cross_matrix(screw[0:3])
     G = thetadot * torch.eye(3, 3) + (1.0 - torch.cos(thetadot)) * w + (thetadot - torch.sin(thetadot)) * torch.matmul(w, w)
