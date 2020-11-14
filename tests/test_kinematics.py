@@ -2,7 +2,7 @@ import torch
 from math import sin, cos, pi, radians, degrees
 from se3 import *
 from matplotlib import pyplot as plt
-from vpython import sphere, cylinder, rate, vector, box, textures, canvas, scene, compound, color
+from vpython import sphere, cylinder, rate, vector, box, textures, canvas, scene, compound, color, arrow
 
 def _v(tensor):
     return vector(tensor[0], tensor[1], tensor[2])
@@ -54,6 +54,40 @@ def forward_kinematics_dh(theta1, theta2, theta3):
     J3 = T01.matmul(T12.matmul(T23))
     J4 = T01.matmul(T12.matmul(T23.matmul(T34)))
     return J1, J2, J3, J4
+
+""" 
+origin and 3 principle axis of a frame, homogenous co-ords,
+such that F = T.matmul(F) where T is a transformation matrix and F is the frame
+"""
+frame = torch.tensor([
+    [0, 0, 0, 1],
+    [1, 0, 0, 1],
+    [0, 1, 0, 1],
+    [0, 0, 1, 1],
+], dtype=torch.float).T
+
+def origin(frame):
+    return _v(frame[0:3, 0])
+
+def x_axis(frame):
+    return _v(frame[0:3, 1])
+
+def y_axis(frame):
+    return _v(frame[0:3, 2])
+
+def z_axis(frame):
+    return _v(frame[0:3, 3])
+
+def tm(x=0.0, y=0.0, z=0.0, R=None):
+    t = torch.tensor([
+        [1, 0, 0, x],
+        [0, 1, 0, y],
+        [0, 0, 1, z],
+        [0, 0, 0, 1],
+    ], dtype=torch.float)
+    if R is not None:
+        t[0:3, 0:3] = R
+    return t
 
 
 def test_simple_chain_denavit_hartenberg():
@@ -403,40 +437,6 @@ def test_6r_kinemetic_chain():
 def test_rrprrr_open_chain():
     """ modern robotics example 4.4"""
 
-    """ 
-    origin and 3 principle axis of a frame, homogenous co-ords,
-    such that F = T.matmul(F) where T is a transformation matrix and F is the frame
-    """
-    frame = torch.tensor([
-        [0, 0, 0, 1],
-        [1, 0, 0, 1],
-        [0, 1, 0, 1],
-        [0, 0, 1, 1],
-    ], dtype=torch.float).T
-
-    def origin(frame):
-        return _v(frame[0:3, 0])
-
-    def x_axis(frame):
-        return _v(frame[0:3, 1])
-
-    def y_axis(frame):
-        return _v(frame[0:3, 2])
-
-    def z_axis(frame):
-        return _v(frame[0:3, 3])
-
-    def tm(x=0.0, y=0.0, z=0.0, R=None):
-        t = torch.tensor([
-            [1, 0, 0, x],
-            [0, 1, 0, y],
-            [0, 0, 1, z],
-            [0, 0, 0, 1],
-        ], dtype=torch.float)
-        if R is not None:
-            t[0:3, 0:3] = R
-        return t
-
     l1, l2 = 1.0, 1.0
 
     screws = [
@@ -495,3 +495,144 @@ def test_rrprrr_open_chain():
 
         rate(3)
         t+= 0.05
+
+
+def test_UR5_6R():
+
+    """modern robotics example 4.5 """
+
+    W1, W2, L1, L2, H1, H2 = 0.109, 0.082, 0.425, 0.392, 0.089, 0.095  # m
+
+    screws = [
+        torch.tensor([0, 0, 1, 0, 0, 0], dtype=torch.float),
+        torch.tensor([0, 1, 0, -H1, 0, 0], dtype=torch.float),
+        torch.tensor([0, 1, 0, -H1, 0, L1], dtype=torch.float),
+        torch.tensor([0, 1, 0, -H1, 0, L1+L2], dtype=torch.float),
+        torch.tensor([0, 0, -1, -W1, L1+L2, 0], dtype=torch.float),
+        torch.tensor([0, 1, 0, -H1+H2, 0, L1+L2], dtype=torch.float),
+    ]
+
+    M = torch.tensor([
+        [-1, 0, 0, L1+L2],
+        [0, 0, 1, W1+W2],
+        [0, 1, 0, H1-H2],
+        [0, 0, 0, 1],
+    ], dtype=torch.float)
+
+    assert torch.allclose(
+        matrix_exp_screw(screws[1], -pi/2),
+        torch.tensor([
+            [0, 0, -1, 0.089],
+            [0, 1, 0, 0],
+            [1, 0, 0, 0.089],
+            [0, 0, 0, 1],
+        ])
+    )
+
+    assert torch.allclose(
+        matrix_exp_screw(screws[4], pi/2),
+        torch.tensor([
+            [0, 1, 0, 0.708],
+            [-1, 0, 0, 0.926],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1],
+        ])
+    )
+
+    assert torch.allclose(
+        matrix_exp_screw(screws[1], -pi / 2).matmul(matrix_exp_screw(screws[4], pi / 2)).matmul(M),
+        torch.tensor([
+            [0, -1, 0, 0.095],
+            [1, 0, 0, 0.109],
+            [0, 0, 1, 0.988],
+            [0, 0, 0, 1],
+        ])
+    )
+
+
+def test_UR5_6R_visual():
+
+    """modern robotics example 4.5 """
+
+    W1, W2, L1, L2, H1, H2 = 0.109, 0.082, 0.425, 0.392, 0.089, 0.095  # m
+
+    screws = [
+        torch.tensor([0, 0, 1, 0, 0, 0], dtype=torch.float),
+        torch.tensor([0, 0, 0, 0, 0, 0], dtype=torch.float),
+        torch.tensor([0, 1, 0, -H1, 0, 0], dtype=torch.float),
+        torch.tensor([0, 1, 0, -H1, 0, L1], dtype=torch.float),
+        torch.tensor([0, 0, 0, 0, 0, 0], dtype=torch.float),
+        torch.tensor([0, 1, 0, -H1, 0, L1+L2], dtype=torch.float),
+        torch.tensor([0, 0, -1, -W1, L1+L2, 0], dtype=torch.float),
+        torch.tensor([0, 1, 0, -H1+H2, 0, L1+L2], dtype=torch.float),
+    ]
+
+    M = torch.tensor([
+        [-1, 0, 0, L1+L2],
+        [0, 0, 1, W1+W2],
+        [0, 1, 0, H1-H2],
+        [0, 0, 0, 1],
+    ], dtype=torch.float)
+
+    joints = [tm(), tm(0, 0, H1), tm(0, W1, H1), tm(L1, W1, H1), tm(L1, 0, H1), tm(L1+L2, 0, H1), tm(L1+L2, W1, H1), M]
+
+    canvas(width=1200, height=1200)
+
+    joints_viz = [cylinder(axis=vector(0, 0, 0.0), radius=0.04, color=vector(0.1, 0.3, 0.4), visible=False) for _ in range(7)]
+    joints_facing = [z_axis, z_axis, y_axis, y_axis, y_axis, y_axis, z_axis, y_axis]
+
+    links_viz = [None]
+    links_viz += [cylinder(radius=0.03, color=vector(0.6, 0.6, 0.6), visible=False) for _ in range(5)]
+    links_viz += [None, None]
+
+    class FrameViz:
+        def __init__(self):
+            self.x_arrow = arrow(thickness=0.1, color=vector(0.1, 0.1, 0.5))
+            self.y_arrow = arrow(thickness=0.1, color=vector(0.5, 0.5, 0.1))
+            self.z_arrow = arrow(thickness=0.1, color=vector(0.5, 0.1, 0.1))
+
+        def update(self, frame, length=0.3):
+            self.x_arrow.pos = origin(end_frame)
+            self.x_arrow.axis = (x_axis(end_frame) - origin(end_frame)) * length
+            self.y_arrow.pos = origin(end_frame)
+            self.y_arrow.axis = (y_axis(end_frame) - origin(end_frame)) * length
+            self.z_arrow.pos = origin(end_frame)
+            self.z_arrow.axis = (z_axis(end_frame) - origin(end_frame)) * length
+
+    end_effector_viz = FrameViz()
+
+    def normalize_angle(radians):
+        return (radians + pi) % (2 * pi) - pi
+
+    def normalize_half(radians):
+        return ((radians + pi) % (2 * pi) - pi)
+
+    drivers = [normalize_half for _ in screws]
+
+    t = 0.0
+
+    while t < 10 * pi:
+
+        ts = [matrix_exp_screw(s, driver(t)) for s, driver in zip(screws, drivers)]
+
+        tb = tm()
+        prev_joint_pos = vector(0, 0, 0)
+        end_frame = None
+
+        for tf, j, jv, jf, lv in list(zip(ts, joints, joints_viz, joints_facing, links_viz)):
+            tb = tb.matmul(tf)
+            joint_frame = tb.matmul(j).matmul(frame)
+            jv.visible = True
+            jv.pos = origin(joint_frame)
+            jv.axis = (jf(joint_frame) - origin(joint_frame)) * 0.05
+            if lv:
+                lv.visible = True
+                lv.pos = prev_joint_pos
+                lv.axis = jv.pos - prev_joint_pos
+            prev_joint_pos = origin(joint_frame)
+            end_frame = joint_frame
+
+        end_effector_viz.update(end_frame)
+
+        rate(12)
+        t += 0.01
