@@ -1,8 +1,10 @@
-import torch
-from math import sin, cos, pi, radians, degrees
+from math import sin, cos
 from se3 import *
 from matplotlib import pyplot as plt
-from vpython import sphere, cylinder, rate, vector, box, textures, canvas, scene, compound, color, arrow
+from vpython import cylinder, rate, vector, box, textures, canvas, compound, color
+
+from viz import frame, origin, x_axis, y_axis, z_axis, FrameViz
+
 
 def _v(tensor):
     return vector(tensor[0], tensor[1], tensor[2])
@@ -55,28 +57,6 @@ def forward_kinematics_dh(theta1, theta2, theta3):
     J4 = T01.matmul(T12.matmul(T23.matmul(T34)))
     return J1, J2, J3, J4
 
-""" 
-origin and 3 principle axis of a frame, homogenous co-ords,
-such that F = T.matmul(F) where T is a transformation matrix and F is the frame
-"""
-frame = torch.tensor([
-    [0, 0, 0, 1],
-    [1, 0, 0, 1],
-    [0, 1, 0, 1],
-    [0, 0, 1, 1],
-], dtype=torch.float).T
-
-def origin(frame):
-    return _v(frame[0:3, 0])
-
-def x_axis(frame):
-    return _v(frame[0:3, 1])
-
-def y_axis(frame):
-    return _v(frame[0:3, 2])
-
-def z_axis(frame):
-    return _v(frame[0:3, 3])
 
 def tm(x=0.0, y=0.0, z=0.0, R=None):
     t = torch.tensor([
@@ -585,24 +565,7 @@ def test_UR5_6R_visual():
     links_viz += [cylinder(radius=0.03, color=vector(0.6, 0.6, 0.6), visible=False) for _ in range(5)]
     links_viz += [None, None]
 
-    class FrameViz:
-        def __init__(self):
-            self.x_arrow = arrow(thickness=0.1, color=vector(0.1, 0.1, 0.5))
-            self.y_arrow = arrow(thickness=0.1, color=vector(0.5, 0.5, 0.1))
-            self.z_arrow = arrow(thickness=0.1, color=vector(0.5, 0.1, 0.1))
-
-        def update(self, frame, length=0.3):
-            self.x_arrow.pos = origin(end_frame)
-            self.x_arrow.axis = (x_axis(end_frame) - origin(end_frame)) * length
-            self.y_arrow.pos = origin(end_frame)
-            self.y_arrow.axis = (y_axis(end_frame) - origin(end_frame)) * length
-            self.z_arrow.pos = origin(end_frame)
-            self.z_arrow.axis = (z_axis(end_frame) - origin(end_frame)) * length
-
     end_effector_viz = FrameViz()
-
-    def normalize_angle(radians):
-        return (radians + pi) % (2 * pi) - pi
 
     def normalize_half(radians):
         return ((radians + pi) % (2 * pi) - pi)
