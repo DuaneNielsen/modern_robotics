@@ -1,7 +1,10 @@
 from math import sin, cos
+
+from robot import jacobian_space
 from se3 import *
 from matplotlib import pyplot as plt
 from vpython import cylinder, rate, vector, box, textures, canvas, compound, color
+from torch import tensor, allclose
 
 from viz import frame, origin, x_axis, y_axis, z_axis, FrameViz
 
@@ -71,7 +74,6 @@ def tm(x=0.0, y=0.0, z=0.0, R=None):
 
 
 def test_simple_chain_denavit_hartenberg():
-
     plot = Plot()
 
     t = 0.0
@@ -158,7 +160,7 @@ def test_simple_chain():
         V[0:3, 3] = twist[3:6]
         return V
 
-    S1 = torch.tensor([0, 0, 1, 0,  0, 0], dtype=torch.float)
+    S1 = torch.tensor([0, 0, 1, 0, 0, 0], dtype=torch.float)
     S2 = torch.tensor([0, 0, 1, 0, -1, 0], dtype=torch.float)
     S3 = torch.tensor([0, 0, 1, 0, -2, 0], dtype=torch.float)
 
@@ -178,7 +180,6 @@ def test_simple_chain():
 
     t = 0.0
     while t < 4 * 3.1417:
-
         T1_dh, T2_dh, T3_dh, T4_dh = forward_kinematics_dh(t, t, t)
 
         plot.joint(J0, 'm')
@@ -212,15 +213,14 @@ def test_simple_chain():
 
 
 def test_3r_open_chain():
-
     canvas(width=1200, height=600)
 
     L1 = 5.0
     L2 = 2.0
 
     M = torch.tensor([
-        [0, 0, 1,   L1],
-        [0, 1, 0,    0],
+        [0, 0, 1, L1],
+        [0, 1, 0, 0],
         [-1, 0, 0, -L2],
         [0, 0, 0, 1]
     ])
@@ -245,7 +245,6 @@ def test_3r_open_chain():
         [-1, 0, 0, -L2],
         [0, 0, 0, 1]
     ], dtype=torch.float)
-
 
     S1 = torch.tensor([0, 0, 1, 0, 0, 0], dtype=torch.float)
     S2 = torch.tensor([0, -1, 0, 0, 0, -L1], dtype=torch.float)
@@ -313,14 +312,13 @@ def test_3r_open_chain():
 
 
 def test_6r_kinemetic_chain():
-
     """modern robotics fig 4.4"""
 
     L = 1.0
 
     M = torch.tensor([
         [1, 0, 0, 0],
-        [0, 1, 0, 3*L],
+        [0, 1, 0, 3 * L],
         [0, 0, 1, 0],
         [0, 0, 0, 1]
     ], dtype=torch.float)
@@ -330,7 +328,7 @@ def test_6r_kinemetic_chain():
         torch.tensor([0, 1, 0, 0, 0, 0], dtype=torch.float),
         torch.tensor([-1, 0, 0, 0, 0, 0], dtype=torch.float),
         torch.tensor([-1, 0, 0, 0, 0, L], dtype=torch.float),
-        torch.tensor([-1, 0, 0, 0, 0, 2*L], dtype=torch.float),
+        torch.tensor([-1, 0, 0, 0, 0, 2 * L], dtype=torch.float),
         torch.tensor([0, 1, 0, 0, 0, 0], dtype=torch.float)
     ]
 
@@ -361,13 +359,13 @@ def test_6r_kinemetic_chain():
         ], dtype=torch.float),
         torch.tensor([
             [1, 0, 0, 0],
-            [0, 1, 0, 2*L],
+            [0, 1, 0, 2 * L],
             [0, 0, 1, 0],
             [0, 0, 0, 1],
         ], dtype=torch.float),
         torch.tensor([
             [1, 0, 0, 0],
-            [0, 1, 0, 3*L],
+            [0, 1, 0, 3 * L],
             [0, 0, 1, 0],
             [0, 0, 0, 1],
         ], dtype=torch.float),
@@ -407,11 +405,11 @@ def test_6r_kinemetic_chain():
             joints_viz[i].axis = (axis(p) - position(p)) * 0.3
 
             if i > 2:
-                links_viz[i-3].pos = joints_viz[i-1].pos
-                links_viz[i-3].axis = joints_viz[i].pos - joints_viz[i-1].pos
+                links_viz[i - 3].pos = joints_viz[i - 1].pos
+                links_viz[i - 3].axis = joints_viz[i].pos - joints_viz[i - 1].pos
 
         rate(6)
-        t+= 0.05
+        t += 0.05
 
 
 def test_rrprrr_open_chain():
@@ -428,7 +426,7 @@ def test_rrprrr_open_chain():
         torch.tensor([0, 1, 0, 0, 0, 0], dtype=torch.float),
     ]
 
-    joints = [tm(), tm(), tm(), tm(), tm(0, l1, 0), tm(0, l1+l2, 0)]
+    joints = [tm(), tm(), tm(), tm(), tm(0, l1, 0), tm(0, l1 + l2, 0)]
 
     canvas(width=1200, height=600)
     joints_viz = [cylinder(axis=vector(0, 0, 0.2), radius=0.2, color=vector(0, 1.0, 0.3)) for _ in range(6)]
@@ -474,11 +472,10 @@ def test_rrprrr_open_chain():
         hammer.axis = (y_axis(end_effector_frame) - origin(end_effector_frame)) * 0.2
 
         rate(3)
-        t+= 0.05
+        t += 0.05
 
 
 def test_UR5_6R():
-
     """modern robotics example 4.5 """
 
     W1, W2, L1, L2, H1, H2 = 0.109, 0.082, 0.425, 0.392, 0.089, 0.095  # m
@@ -487,20 +484,20 @@ def test_UR5_6R():
         torch.tensor([0, 0, 1, 0, 0, 0], dtype=torch.float),
         torch.tensor([0, 1, 0, -H1, 0, 0], dtype=torch.float),
         torch.tensor([0, 1, 0, -H1, 0, L1], dtype=torch.float),
-        torch.tensor([0, 1, 0, -H1, 0, L1+L2], dtype=torch.float),
-        torch.tensor([0, 0, -1, -W1, L1+L2, 0], dtype=torch.float),
-        torch.tensor([0, 1, 0, -H1+H2, 0, L1+L2], dtype=torch.float),
+        torch.tensor([0, 1, 0, -H1, 0, L1 + L2], dtype=torch.float),
+        torch.tensor([0, 0, -1, -W1, L1 + L2, 0], dtype=torch.float),
+        torch.tensor([0, 1, 0, -H1 + H2, 0, L1 + L2], dtype=torch.float),
     ]
 
     M = torch.tensor([
-        [-1, 0, 0, L1+L2],
-        [0, 0, 1, W1+W2],
-        [0, 1, 0, H1-H2],
+        [-1, 0, 0, L1 + L2],
+        [0, 0, 1, W1 + W2],
+        [0, 1, 0, H1 - H2],
         [0, 0, 0, 1],
     ], dtype=torch.float)
 
     assert torch.allclose(
-        matrix_exp_screw(screws[1], -pi/2),
+        matrix_exp_screw(screws[1], -pi / 2),
         torch.tensor([
             [0, 0, -1, 0.089],
             [0, 1, 0, 0],
@@ -510,7 +507,7 @@ def test_UR5_6R():
     )
 
     assert torch.allclose(
-        matrix_exp_screw(screws[4], pi/2),
+        matrix_exp_screw(screws[4], pi / 2),
         torch.tensor([
             [0, 1, 0, 0.708],
             [-1, 0, 0, 0.926],
@@ -531,7 +528,6 @@ def test_UR5_6R():
 
 
 def test_UR5_6R_visual():
-
     """modern robotics example 4.5 """
 
     W1, W2, L1, L2, H1, H2 = 0.109, 0.082, 0.425, 0.392, 0.089, 0.095  # m
@@ -542,23 +538,26 @@ def test_UR5_6R_visual():
         torch.tensor([0, 1, 0, -H1, 0, 0], dtype=torch.float),
         torch.tensor([0, 1, 0, -H1, 0, L1], dtype=torch.float),
         torch.tensor([0, 0, 0, 0, 0, 0], dtype=torch.float),
-        torch.tensor([0, 1, 0, -H1, 0, L1+L2], dtype=torch.float),
-        torch.tensor([0, 0, -1, -W1, L1+L2, 0], dtype=torch.float),
-        torch.tensor([0, 1, 0, -H1+H2, 0, L1+L2], dtype=torch.float),
+        torch.tensor([0, 1, 0, -H1, 0, L1 + L2], dtype=torch.float),
+        torch.tensor([0, 0, -1, -W1, L1 + L2, 0], dtype=torch.float),
+        torch.tensor([0, 1, 0, -H1 + H2, 0, L1 + L2], dtype=torch.float),
     ]
 
+
     M = torch.tensor([
-        [-1, 0, 0, L1+L2],
-        [0, 0, 1, W1+W2],
-        [0, 1, 0, H1-H2],
+        [-1, 0, 0, L1 + L2],
+        [0, 0, 1, W1 + W2],
+        [0, 1, 0, H1 - H2],
         [0, 0, 0, 1],
     ], dtype=torch.float)
 
-    joints = [tm(), tm(0, 0, H1), tm(0, W1, H1), tm(L1, W1, H1), tm(L1, 0, H1), tm(L1+L2, 0, H1), tm(L1+L2, W1, H1), M]
+    joints = [tm(), tm(0, 0, H1), tm(0, W1, H1), tm(L1, W1, H1), tm(L1, 0, H1), tm(L1 + L2, 0, H1), tm(L1 + L2, W1, H1),
+              M]
 
     canvas(width=1200, height=1200)
 
-    joints_viz = [cylinder(axis=vector(0, 0, 0.0), radius=0.04, color=vector(0.1, 0.3, 0.4), visible=False) for _ in range(7)]
+    joints_viz = [cylinder(axis=vector(0, 0, 0.0), radius=0.04, color=vector(0.1, 0.3, 0.4), visible=False) for _ in
+                  range(7)]
     joints_facing = [z_axis, z_axis, y_axis, y_axis, y_axis, y_axis, z_axis, y_axis]
 
     links_viz = [None]
@@ -599,3 +598,269 @@ def test_UR5_6R_visual():
 
         rate(12)
         t += 0.01
+
+
+def test_rrrrrr_body_form():
+    """ modern robotics example 4.6 PoE in body form"""
+
+    L = 1.0
+
+    screws = [
+        torch.tensor([0, 0, 1, -3 * L, 0, 0], dtype=torch.float),
+        torch.tensor([0, 1, 0, 0, 0, 0], dtype=torch.float),
+        torch.tensor([-1, 0, 0, 0, 0, -3 * L], dtype=torch.float),
+        torch.tensor([-1, 0, 0, 0, 0, -2 * L], dtype=torch.float),
+        torch.tensor([-1, 0, 0, 0, 0, -L], dtype=torch.float),
+        torch.tensor([0, 1, 0, 0, 0, 0], dtype=torch.float)
+    ]
+
+    screws_spacial = [
+        torch.tensor([0, 0, 1, 0, 0, 0], dtype=torch.float),
+        torch.tensor([0, 1, 0, 0, 0, 0], dtype=torch.float),
+        torch.tensor([-1, 0, 0, 0, 0, 0], dtype=torch.float),
+        torch.tensor([-1, 0, 0, 0, 0, L], dtype=torch.float),
+        torch.tensor([-1, 0, 0, 0, 0, 2 * L], dtype=torch.float),
+        torch.tensor([0, 1, 0, 0, 0, 0], dtype=torch.float)
+    ]
+
+    M = tm(0, 3 * L, 0)
+    B = M.inverse()
+
+    joints = [tm(0, 0, 0), tm(0, 0, 0), tm(0, 0, 0), tm(0, L, 0), tm(0, 2 * L, 0), M]
+
+    def cyl():
+        return cylinder(axis=vector(0, 0, 0.0), radius=0.2, color=vector(0.1, 0.3, 0.4), visible=False)
+
+    canvas(width=1200, height=1200)
+
+    # joints_viz = [cyl() for _ in range(6)]
+    joints_facing = [z_axis, y_axis, x_axis, x_axis, x_axis, y_axis]
+
+    def link():
+        return cylinder(radius=0.1, color=vector(0.6, 0.6, 0.6), visible=False)
+
+    # links = [None, None, None, link(), link(), link()]
+
+    end_effector_body_viz = FrameViz()
+    end_effector_spacial_viz = FrameViz()
+
+    def id(t):
+        return t
+
+    t = 0.0
+
+    def body_exp_screw(B, S, thetadot):
+        S_M = twist_matrix(S)
+        S_M = B.matmul(S_M)
+        S_M = twist_vector(S_M)
+        return matrix_exp_screw(S_M, thetadot)
+
+    while t < 6 * pi:
+
+        end_effector = M
+        for s in screws:
+            end_effector = end_effector.matmul(body_exp_screw(B, s, t))
+
+        end_effector_body_frame = end_effector.matmul(frame)
+        end_effector_body_viz.update(end_effector_body_frame)
+
+        T = tm()
+
+        for s in screws_spacial:
+            T = T.matmul(matrix_exp_screw(s, t))
+        end_effector_spacial_frame = T.matmul(M).matmul(frame)
+        end_effector_spacial_viz.update(end_effector_spacial_frame)
+
+        assert torch.allclose(end_effector_spacial_frame, end_effector_body_frame, atol=1e-5)
+
+        rate(12)
+        t += 0.01
+
+
+def test_velocity_kinematics():
+    """modern robotics chapter 5.0"""
+
+    L1, L2 = 1.0, 1.0
+
+    def j(theta):
+        return torch.tensor([
+            [-L1 * sin(theta[0]) - L2 * sin(theta[0] + theta[1]), -L2 * sin(theta[0] + theta[1])],
+            [L1 * cos(theta[0]) + L2 * cos(theta[0] + theta[1]), L2 * cos(theta[0] + theta[1])],
+        ])
+
+    assert torch.allclose(
+        j(torch.tensor([0, pi / 4])),
+        torch.tensor([
+            [-0.71, -0.71],
+            [1.71, 0.71]
+        ]),
+        atol=1e-1)
+
+    assert torch.allclose(
+        j(torch.tensor([0, 3 * pi / 4])),
+        torch.tensor([
+            [-0.71, -0.71],
+            [0.29, -0.71]
+        ]),
+        atol=1e-1)
+
+    r = torch.linspace(0, 2 * pi, 20)
+    x = torch.cos(r)
+    y = torch.sin(r)
+    s = torch.stack((x, y))
+
+    m = j(torch.tensor([0, pi / 4])).matmul(s)
+
+    plt.plot(m[0], m[1])
+    plt.title('manipulability plot theta0 = 0, theta1 = 1')
+    plt.xlabel('thetadot 0')
+    plt.ylabel('thetadot 1')
+    plt.show()
+
+
+def test_space_jacobian_RRRP():
+    """ modern robotics example 5.2"""
+
+    l1, l2 = 1.0, 1.0
+
+    theta = torch.tensor([0, 0, 0, 0])
+
+    def j(theta):
+        return torch.tensor([
+            [0, 0, 1, 0, 0, 0],
+            [0, 0, 1, l1 * sin(theta[0]), -l1 * cos(theta[0]), 0],
+            [0, 0, 1, l1 * sin(theta[0]) + l2 * sin(theta[1]), -l1 * cos(theta[0]) - l2 * cos(theta[1]), 0],
+            [0, 0, 0, 0, 0, 1]
+        ], dtype=torch.float).T
+
+    assert torch.allclose(
+        j(theta),
+        torch.tensor([
+            [0., 0., 0., 0.],
+            [0., 0., 0., 0.],
+            [1., 1., 1., 0.],
+            [0., 0., 0., 0.],
+            [0., -1., -2., 0.],
+            [0., 0., 0., 1.]
+        ])
+    )
+
+    theta = torch.tensor([0, pi / 2, 0, 0], dtype=torch.float)
+
+    assert torch.allclose(
+        j(theta),
+        torch.tensor([
+            [0., 0., 0., 0.],
+            [0., 0., 0., 0.],
+            [1., 1., 1., 0.],
+            [0., 0., 1., 0.],
+            [0., -1., -1., 0.],
+            [0., 0., 0., 1.]
+        ], dtype=torch.float)
+    )
+
+
+def test_space_jacobian_RRPRRR():
+    l1, l2 = 1.0, 1.0
+
+    screws = tensor([
+        [0., 0., 1., 0., 0., 0.],
+        [-1., 0., 0., 0., -l1, 0.],
+        [0., 0., 0., 0., 1., 0.],
+        [0., 0., 1., l2, 0., 0.],
+        [-1., 0., 0., 0, -l1, l2],
+        [0., 1., 0., -l1, 0., 0.]
+    ])
+
+    def jacobian_analytical(theta):
+        s = torch.sin(theta)
+        c = torch.cos(theta)
+
+        ws1 = tensor([0., 0., 1.])
+        q1 = tensor([0., 0., l1])
+        v1 = -ws1.cross(q1)
+        assert allclose(v1, tensor([0., 0., 0.]))
+
+        ws2 = tensor([-cos(theta[0]), -sin(theta[0]), 0.])
+        q2 = tensor([0., 0., l1])
+        v2 = -ws2.cross(q2)
+        assert allclose(v2, tensor([l1 * s[0], -l1 * c[0], 0.]))
+
+        ws3 = tensor([0., 0., 0.])
+        z_ax = tensor([0., 0., 1.])
+        x_ax = tensor([1., 0., 0.])
+        y_ax = tensor([0., 1., 0.])
+        r3 = matrix_exp_rotation(z_ax, theta[0]).matmul(matrix_exp_rotation(x_ax, -theta[1]))
+        v3 = r3.matmul(y_ax.T)
+        v3_check = tensor([-s[0] * c[1], c[0] * c[1], -s[1]])
+
+        assert allclose(v3, v3_check)
+
+        qw = tensor([0, 0, l1]) + r3.matmul(tensor([0., l2 + theta[2], 0.]))
+
+        assert allclose(qw, tensor([
+            -(l2 + theta[2]) * s[0] * c[1],
+            (l2 + theta[2]) * c[0] * c[1],
+            l1 - (l2 + theta[2]) * s[1]
+        ]))
+
+        ws4 = r3.matmul(z_ax)
+
+        assert allclose(ws4, tensor([
+            -s[0] * s[1],
+            c[0] * s[1],
+            c[1]
+        ]))
+
+        r5 = r3.matmul(matrix_exp_rotation(z_ax, theta[3]))
+        ws5 = r5.matmul(-x_ax)
+
+        assert allclose(ws5, tensor([
+            -c[0] * c[3] + s[0] * c[1] * s[3],
+            -s[0] * c[3] - c[0] * c[1] * s[3],
+            s[1] * s[3]
+        ]))
+
+        r6 = r5.matmul(matrix_exp_rotation(x_ax, -theta[4]))
+        ws6 = r6.matmul(y_ax)
+
+        assert allclose(ws6, torch.tensor([
+            -c[4] * (s[0] * c[1] * c[3] + c[0] * s[3]) + s[0] * s[1] * s[4],
+            c[4] * (c[0] * c[1] * c[3] - s[0] * s[3]) - c[0] * s[1] * s[4],
+            -s[1] * c[3] * c[4] - c[1] * s[4]
+        ]))
+
+        j = torch.zeros(6, 6, dtype=torch.float)
+
+        j[0:3, 0] = ws1
+
+        j[0:3, 1] = ws2
+        j[3:6, 1] = -ws2.cross(q2)
+
+        j[3:6, 2] = v3
+
+        j[0:3, 3] = ws4
+        j[3:6, 3] = -ws4.cross(qw)
+
+        j[0:3, 4] = ws5
+        j[3:6, 4] = -ws5.cross(qw)
+
+        j[0:3, 5] = ws6
+        j[3:6, 5] = -ws6.cross(qw)
+        return j
+
+    theta = tensor([0., 0., 0., 0., 0., 0.])
+    torch.set_printoptions(sci_mode=False, profile='short')
+    # print('')
+    # print(jacobian_space(screws, theta))
+    # print(jacobian_analytical(theta))
+    # print('')
+    assert allclose(jacobian_analytical(theta), jacobian_space(screws, theta))
+
+    theta = tensor([1., 1., 1., 1., 1., 1.])
+    assert allclose(jacobian_analytical(theta), jacobian_space(screws, theta), atol=1e7)
+
+    for l in torch.linspace(0, 4, 12):
+        theta = tensor([1., 1., 1., 1., 1., 1.]) * pi * l
+        assert allclose(jacobian_analytical(theta), jacobian_space(screws, theta), atol=1e7)
+

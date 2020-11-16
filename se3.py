@@ -69,7 +69,7 @@ def adjoint(T):
     returns Adjoint matrix to convert a twist from frame b to frame s
     Vs = [Adjoint(Tsb)] Vb
     :param T: (4x4) transform Tsb
-    :return:
+    :return: (6x6) Adjoint matrix
     """
     adj = torch.zeros(6, 6)
     R = T[0:3, 0:3]
@@ -201,19 +201,6 @@ def matrix_log_rotation(R):
     return w, theta
 
 
-def twist_matrix(w, v):
-    """
-
-    :param w: 3x3 cross matrix
-    :param v:
-    :return:
-    """
-    S = torch.zeros(4, 4)
-    S[0:3, 0:3] = w
-    S[0:3, 3] = v
-    return S
-
-
 def twist_qsh(q, s, h, thetadot):
     w = s * thetadot
     v = (-s * thetadot).cross(q) + h * s * thetadot
@@ -233,6 +220,22 @@ def screw(twist):
     else:
         thetadot = twist[0:3].norm()
     return twist / thetadot, thetadot
+
+
+def twist_matrix(twist):
+    """
+    Convert 6 vector twist to 4x4 matrix format
+    :param twist: 6 vector (x_angular, y_angular, z_angular, x_vel, y_vel, z_vel)
+    :return: 4x4 twist matrix
+    """
+    S = torch.zeros(4, 4)
+    S[0:3, 0:3] = cross_matrix(twist[0:3])
+    S[0:3, 3] = twist[3:6]
+    return S
+
+
+def twist_vector(twist_matrix):
+    return twist_matrix.flatten()[torch.tensor([9, 2, 4, 3, 7, 11])]
 
 
 def matrix_exp_screw(screw, thetadot):
@@ -279,4 +282,17 @@ def matrix_log_transform(T):
     else:
         w, theta = matrix_log_rotation(rotation(T))
         v = torch.matmul(inv_g(w, theta), translation(T))
+
+    def twist_matrix(w, v):
+        """
+
+        :param w: 3x3 cross matrix
+        :param v: x, y, z vector
+        :return: 4x4 twist matrix
+        """
+        S = torch.zeros(4, 4)
+        S[0:3, 0:3] = w
+        S[0:3, 3] = v
+        return S
+
     return twist_matrix(w, v), theta

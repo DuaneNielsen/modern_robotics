@@ -2,7 +2,7 @@ from se3 import *
 from math import sin, cos, radians, pi, degrees
 from matplotlib import pyplot as plt
 import pytest
-
+from torch import allclose
 
 I = torch.eye(4, 4)
 
@@ -22,7 +22,6 @@ y_axis = torch.tensor((
 
 
 def test_transform():
-
     def vector(x, y, z, dtype=torch.float):
         return torch.tensor([x, y, z], dtype=dtype)
 
@@ -97,7 +96,6 @@ def test_construct_extract():
 
 
 def test_rotation_log():
-
     omega = torch.rand(3)
     R = matrix_exp_rotation(omega, torch.ones(1) * 2.0)
     w, theta = matrix_log_rotation(R)
@@ -146,7 +144,6 @@ def test_rotation_log():
         assert -0.0001 < normalize_angle(w[2] * theta) - expected < 0.0001
         R_exp = matrix_exp_rotation(w, theta)
         assert torch.allclose(R, R_exp, atol=atol)
-
 
     difference(35, 65, omega_hat=torch.tensor([0, 0, 1.0]), atol=1e-8)
     difference(65, 35, omega_hat=torch.tensor([0, 0, -1.0]), atol=1e-7)
@@ -206,7 +203,6 @@ def test_uncross():
 
 
 def test_matrix_log():
-
     Tsb = torch.tensor([
         [cos(radians(30)), -sin(radians(30)), 0, 1.0],
         [sin(radians(30)), cos(radians(30)), 0, 2.0],
@@ -241,7 +237,7 @@ def test_matrix_log():
 
     assert torch.allclose(uncross_matrix(rotation(s)), torch.tensor([0, 0, 1.0]))
     assert torch.allclose(translation(s), torch.tensor([3.3660, -3.3660, 0]))
-    assert torch.allclose(theta, torch.tensor([pi/6]))
+    assert torch.allclose(theta, torch.tensor([pi / 6]))
 
     Tsb = torch.tensor([
         [1, 0, 0, 3.0],
@@ -251,8 +247,8 @@ def test_matrix_log():
     ])
 
     Tsc = torch.tensor([
-        [cos(radians(60)), -sin(radians(60)), 0, 4-sin(radians(30))],
-        [sin(radians(60)), cos(radians(60)), 0, 4-cos(radians(30))],
+        [cos(radians(60)), -sin(radians(60)), 0, 4 - sin(radians(30))],
+        [sin(radians(60)), cos(radians(60)), 0, 4 - cos(radians(30))],
         [0, 0, 1, 0],
         [0, 0, 0, 1]
     ])
@@ -262,7 +258,7 @@ def test_matrix_log():
 
     assert torch.allclose(uncross_matrix(rotation(s)), torch.tensor([0, 0, 1.0]))
     assert torch.allclose(translation(s), torch.tensor([4.0, -4.0, 0]))
-    assert torch.allclose(theta, torch.tensor([pi/3]))
+    assert torch.allclose(theta, torch.tensor([pi / 3]))
 
 
 def test_twist_qsh():
@@ -277,7 +273,6 @@ def test_twist_qsh():
     plt.ion()
 
     while t < 5.0:
-
         T = matrix_exp_screw(S, thetadot * t)
 
         Tsb = torch.tensor([
@@ -434,7 +429,6 @@ def test_car_twists():
 
 
 def test_matrix_exp():
-
     """ translate 1 unit/sec in y axis"""
     s = torch.tensor([0, 0, 0, 0, 1, 0], dtype=torch.float)
     t = matrix_exp_screw(s, 1.0)
@@ -452,3 +446,19 @@ def test_matrix_exp():
     frame = t.matmul(frame)
     assert frame[1, 1].item() - sin(1.0) < 0.0001
     assert frame[2, 2].item() - cos(1.0) < 0.0001
+
+
+def test_twist_conversion():
+    twist = torch.tensor([0, 1, 2, 3, 4, 5], dtype=torch.float)
+
+    M = twist_matrix(twist)
+    twist_hat = twist_vector(M)
+
+    assert allclose(twist, twist_hat)
+    assert allclose(M,
+                    torch.tensor([
+                        [0, -2, 1, 3],
+                        [2, 0, 0, 4],
+                        [-1, 0, 0, 5],
+                        [0, 0, 0, 0],
+                    ], dtype=torch.float))
