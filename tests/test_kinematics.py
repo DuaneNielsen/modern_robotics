@@ -977,3 +977,75 @@ def test_fkin_space():
     ])
 
     assert allclose(E, expected)
+
+
+def test_fkin_body():
+
+    """ modern robotics example 4.7 """
+
+    L1, L2, L3 = 0.550, 0.300, 0.060
+    W1 = 0.045
+
+    M = tensor([
+        [1, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 1, L1 + L2 + L3],
+        [0, 0, 0, 1],
+    ])
+
+    screws_body = tensor([
+        [0, 0, 1, 0, 0, 0],
+        [0, 1, 0, L1+L2+L3, 0, 0],
+        [0, 0, 1, 0, 0, 0],
+        [0, 1, 0, L2+L3, 0, W1],
+        [0, 0, 1, 0, 0, 0],
+        [0, 1, 0, L3, 0, 0],
+        [0, 0, 1, 0, 0, 0]
+    ], dtype=torch.float).T
+
+    theta_list = tensor([0, pi/4, 0, -pi/4, 0, -pi/2, 0])
+
+    E = fkin_body(M, screws_body, theta_list)
+
+    expected = tensor([
+        [0, 0, -1, 0.3157],
+        [0, 1, 0, 0],
+        [1, 0, 0, 0.6571],
+        [0, 0, 0, 1]
+    ])
+
+    assert allclose(E, expected, atol=1e-4)
+
+
+def test_space_to_body():
+
+    """ modern robotics Example 4.6 """
+
+    L = 1.0
+
+    screws_body = [
+        torch.tensor([0, 0, 1, -3 * L, 0, 0], dtype=torch.float),
+        torch.tensor([0, 1, 0, 0, 0, 0], dtype=torch.float),
+        torch.tensor([-1, 0, 0, 0, 0, -3 * L], dtype=torch.float),
+        torch.tensor([-1, 0, 0, 0, 0, -2 * L], dtype=torch.float),
+        torch.tensor([-1, 0, 0, 0, 0, -L], dtype=torch.float),
+        torch.tensor([0, 1, 0, 0, 0, 0], dtype=torch.float)
+    ]
+
+    screws_body = torch.stack(screws_body, dim=1)
+
+    screws_space = [
+        torch.tensor([0, 0, 1, 0, 0, 0], dtype=torch.float),
+        torch.tensor([0, 1, 0, 0, 0, 0], dtype=torch.float),
+        torch.tensor([-1, 0, 0, 0, 0, 0], dtype=torch.float),
+        torch.tensor([-1, 0, 0, 0, 0, L], dtype=torch.float),
+        torch.tensor([-1, 0, 0, 0, 0, 2 * L], dtype=torch.float),
+        torch.tensor([0, 1, 0, 0, 0, 0], dtype=torch.float)
+    ]
+
+    screws_space = torch.stack(screws_space, dim=1)
+
+    M = tm(0, 3 * L, 0)
+
+    assert allclose(space_to_body(M, screws_space), screws_body)
+    assert allclose(body_to_space(M, screws_body), screws_space)

@@ -1,6 +1,6 @@
 import torch
 
-from se3 import matrix_exp_screw, adjoint
+from se3 import matrix_exp_screw, adjoint, inv_adjoint
 
 
 def fkin_space(M, s_list, theta_list):
@@ -18,6 +18,43 @@ def fkin_space(M, s_list, theta_list):
         A = A.matmul(matrix_exp_screw(s_list[:, i], theta_list[i]))
 
     return A.matmul(M)
+
+
+def space_to_body(M, s_list):
+    """
+    Converts screws in the space frame to screws in the body frame
+    :param M: (4x4) transform to the end_effector in the space frame
+    :param s_list: 6, J screws in the space frame
+    :return: b_list: 6, J screws in the body frame
+    """
+    return inv_adjoint(M).matmul(s_list)
+
+
+def body_to_space(M, b_list):
+    """
+    Converts screws in the body frame to screws in the space frame
+    :param M: (4x4) transform to end effector in the space frame
+    :param b_list: 6, J screws in the space frame
+    :return: s_list: 6, J screws in the body frame
+    """
+    return adjoint(M).matmul(b_list)
+
+
+def fkin_body(M, b_list, theta_list):
+    """
+    Computes position and pose of end effector
+    :param M: home position of end effector in the space frame
+    :param b_list: 6, J screws in the end effector frame
+    :param theta_list: J joint angles
+    :return: end effector position in the space frame
+    """
+    _, J = b_list.shape
+
+    E = M.clone()
+    for i in range(J):
+        E = E.matmul(matrix_exp_screw(b_list[:, i], theta_list[i]))
+
+    return E
 
 
 def jacobian_space(s_list, theta_list):
