@@ -1,6 +1,6 @@
 from math import sin, cos
 
-from robot import jacobian_space
+from robot import *
 from se3 import *
 from matplotlib import pyplot as plt
 from vpython import cylinder, rate, vector, box, textures, canvas, compound, color
@@ -543,7 +543,6 @@ def test_UR5_6R_visual():
         torch.tensor([0, 1, 0, -H1 + H2, 0, L1 + L2], dtype=torch.float),
     ]
 
-
     M = torch.tensor([
         [-1, 0, 0, L1 + L2],
         [0, 0, 1, W1 + W2],
@@ -605,7 +604,7 @@ def test_rrrrrr_body_form():
 
     L = 1.0
 
-    screws = [
+    screws_body = [
         torch.tensor([0, 0, 1, -3 * L, 0, 0], dtype=torch.float),
         torch.tensor([0, 1, 0, 0, 0, 0], dtype=torch.float),
         torch.tensor([-1, 0, 0, 0, 0, -3 * L], dtype=torch.float),
@@ -613,6 +612,8 @@ def test_rrrrrr_body_form():
         torch.tensor([-1, 0, 0, 0, 0, -L], dtype=torch.float),
         torch.tensor([0, 1, 0, 0, 0, 0], dtype=torch.float)
     ]
+
+    screws_body = torch.stack(screws_body, dim=1)
 
     screws_spacial = [
         torch.tensor([0, 0, 1, 0, 0, 0], dtype=torch.float),
@@ -623,8 +624,13 @@ def test_rrrrrr_body_form():
         torch.tensor([0, 1, 0, 0, 0, 0], dtype=torch.float)
     ]
 
+    screws_spacial = torch.stack(screws_spacial, dim=1)
+
     M = tm(0, 3 * L, 0)
-    B = M.inverse()
+    inv_adjoint_M = inv_adjoint(M)
+
+    screws_body_converted = inv_adjoint_M.matmul(screws_spacial)
+    assert allclose(screws_body, screws_body_converted)
 
     joints = [tm(0, 0, 0), tm(0, 0, 0), tm(0, 0, 0), tm(0, L, 0), tm(0, 2 * L, 0), M]
 
@@ -658,15 +664,16 @@ def test_rrrrrr_body_form():
     while t < 6 * pi:
 
         end_effector = M
-        for s in screws:
-            end_effector = end_effector.matmul(body_exp_screw(B, s, t))
+        for s in screws_body.T:
+            # end_effector = end_effector.matmul(body_exp_screw(B, s, t))
+            end_effector = end_effector.matmul(matrix_exp_screw(s, t))
 
         end_effector_body_frame = end_effector.matmul(frame)
         end_effector_body_viz.update(end_effector_body_frame)
 
         T = tm()
 
-        for s in screws_spacial:
+        for s in screws_spacial.T:
             T = T.matmul(matrix_exp_screw(s, t))
         end_effector_spacial_frame = T.matmul(M).matmul(frame)
         end_effector_spacial_viz.update(end_effector_spacial_frame)
@@ -770,7 +777,7 @@ def test_space_jacobian_RRPRRR():
         [0., 0., 1., l2, 0., 0.],
         [-1., 0., 0., 0, -l1, l2],
         [0., 1., 0., -l1, 0., 0.]
-    ])
+    ]).T
 
     def jacobian_analytical(theta):
         s = torch.sin(theta)
@@ -855,6 +862,7 @@ def test_space_jacobian_RRPRRR():
     # print(jacobian_space(screws, theta))
     # print(jacobian_analytical(theta))
     # print('')
+    assert allclose(jacobian_space(screws, theta), jacobian_space(screws, theta))
     assert allclose(jacobian_analytical(theta), jacobian_space(screws, theta))
 
     theta = tensor([1., 1., 1., 1., 1., 1.])
@@ -864,3 +872,108 @@ def test_space_jacobian_RRPRRR():
         theta = tensor([1., 1., 1., 1., 1., 1.]) * pi * l
         assert allclose(jacobian_analytical(theta), jacobian_space(screws, theta), atol=1e7)
 
+
+def test_jacobian_body_form():
+    l1, l2 = 1.0, 1.0
+
+    screws_s = tensor([
+        [0., 0., 1., 0., 0., 0.],
+        [-1., 0., 0., 0., -l1, 0.],
+        [0., 0., 0., 0., 1., 0.],
+        [0., 0., 1., l2, 0., 0.],
+        [-1., 0., 0., 0, -l1, l2],
+        [0., 1., 0., -l1, 0., 0.],
+        [0., 1., 0., -l1, 0., 0.],
+    ]).T
+
+    M = tm(0, l2, l1)
+
+    screws_b = inv_adjoint(M).matmul(screws_s)
+
+    thetas = torch.ones(7)
+
+    j = []
+    _, J = screws_b.shape
+
+    assert J == 7
+
+    body_j = jacobian_body(screws_b, thetas)
+    space_j = jacobian_space(screws_s, thetas)
+
+    print('')
+    print(body_j)
+
+    thetadots = torch.ones(7)
+
+    E = torch.eye(4)
+    for i in range(J):
+        E = E.matmul(matrix_exp_screw(screws_s[:, i], thetas[i]))
+    E = E.matmul(M)
+
+    Vb = body_j.matmul(thetadots)
+    Vs = space_j.matmul(thetadots)
+
+    print('')
+    print(Vs)
+    print(adjoint(E).matmul(Vb))
+
+    assert allclose(Vs, adjoint(E).matmul(Vb))
+    assert allclose(Vb, inv_adjoint(E).matmul(Vs))
+
+
+def test_fkin_space():
+    W1, W2, L1, L2, H1, H2 = 0.109, 0.082, 0.425, 0.392, 0.089, 0.095  # m
+
+    screws = tensor([
+        [0, 0, 1, 0, 0, 0],
+        [0, 1, 0, -H1, 0, 0],
+        [0, 1, 0, -H1, 0, L1],
+        [0, 1, 0, -H1, 0, L1 + L2],
+        [0, 0, -1, -W1, L1 + L2, 0],
+        [0, 1, 0, -H1 + H2, 0, L1 + L2]
+    ]).T
+
+    M = torch.tensor([
+        [-1, 0, 0, L1 + L2],
+        [0, 0, 1, W1 + W2],
+        [0, 1, 0, H1 - H2],
+        [0, 0, 0, 1],
+    ], dtype=torch.float)
+
+    theta_list = torch.zeros(6)
+    E = fkin_space(M, screws, theta_list)
+    assert allclose(E, M)
+
+    theta_list = tensor([0, -pi / 2, 0, 0, 0, 0])
+
+    E = fkin_space(torch.eye(4), screws, theta_list)
+    expected = tensor([
+        [0, 0, -1, 0.089],
+        [0, 1, 0, 0],
+        [1, 0, 0, 0.089],
+        [0, 0, 0, 1],
+    ])
+
+    assert allclose(E, expected)
+
+    theta_list = tensor([0, 0, 0, 0, pi/2, 0])
+    E = fkin_space(torch.eye(4), screws, theta_list)
+    expected = tensor([
+        [0, 1, 0, 0.708],
+        [-1, 0, 0, 0.926],
+        [0, 0, 1, 0.],
+        [0, 0, 0, 1],
+    ])
+
+    assert allclose(E, expected)
+
+    theta_list = tensor([0, -pi/2, 0, 0, pi/2, 0])
+    E = fkin_space(M, screws, theta_list)
+    expected = tensor([
+        [0, -1, 0, 0.095],
+        [1, 0, 0, 0.109],
+        [0, 0, 1, 0.988],
+        [0, 0, 0, 1],
+    ])
+
+    assert allclose(E, expected)
