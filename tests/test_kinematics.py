@@ -768,6 +768,8 @@ def test_space_jacobian_RRRP():
 
 
 def test_space_jacobian_RRPRRR():
+    """ modern robotics example 5.3"""
+
     l1, l2 = 1.0, 1.0
 
     screws = tensor([
@@ -874,6 +876,12 @@ def test_space_jacobian_RRPRRR():
 
 
 def test_jacobian_body_form():
+    """ modern robotics 5.3
+    with an extra joint RRPRRRR
+    testing body jacobian by computing space jacobian, applying some joint angles
+    and changing the frame
+    """
+
     l1, l2 = 1.0, 1.0
 
     screws_s = tensor([
@@ -892,16 +900,12 @@ def test_jacobian_body_form():
 
     thetas = torch.ones(7)
 
-    j = []
     _, J = screws_b.shape
 
     assert J == 7
 
     body_j = jacobian_body(screws_b, thetas)
     space_j = jacobian_space(screws_s, thetas)
-
-    print('')
-    print(body_j)
 
     thetadots = torch.ones(7)
 
@@ -913,15 +917,14 @@ def test_jacobian_body_form():
     Vb = body_j.matmul(thetadots)
     Vs = space_j.matmul(thetadots)
 
-    print('')
-    print(Vs)
-    print(adjoint(E).matmul(Vb))
-
     assert allclose(Vs, adjoint(E).matmul(Vb))
     assert allclose(Vb, inv_adjoint(E).matmul(Vs))
 
 
 def test_fkin_space():
+
+    """ modern robotics example 4.5 """
+
     W1, W2, L1, L2, H1, H2 = 0.109, 0.082, 0.425, 0.392, 0.089, 0.095  # m
 
     screws = tensor([
