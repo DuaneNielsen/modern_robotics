@@ -96,3 +96,23 @@ def jacobian_body(b_list, theta_list):
     return torch.stack(list(reversed(jac)), dim=1)
 
 
+def singular(jac):
+    """ checks if a 6 x 6 jacobian is singular (ie: linearly independent) """
+    with torch.no_grad():
+        try:
+            A = jac.matmul(jac.T).inverse()
+            torch.cholesky(A)
+        except Exception:
+            return False
+        return True
+
+
+def manipualibility_ellipsoid(jac):
+    A = jac.matmul(jac.T).inverse()
+    try:
+        A = torch.cholesky(A)
+        lam, v = torch.eig(A, eigenvectors=True)
+    except Exception:
+        """ your code should handle singularities, modern robotics 5.3 """
+        raise Exception('Robot pose is at singularity')
+    return A, lam, v

@@ -3,7 +3,7 @@ from math import sin, cos
 from robot import *
 from se3 import *
 from matplotlib import pyplot as plt
-from vpython import cylinder, rate, vector, box, textures, canvas, compound, color
+from vpython import cylinder, rate, vector, box, textures, canvas, compound, color, ellipsoid
 from torch import tensor, allclose
 
 from viz import frame, origin, x_axis, y_axis, z_axis, FrameViz
@@ -919,6 +919,13 @@ def test_jacobian_body_form():
 
     assert allclose(Vs, adjoint(E).matmul(Vb))
     assert allclose(Vb, inv_adjoint(E).matmul(Vs))
+    torch.set_printoptions(sci_mode=False, profile='default', linewidth=200)
+    assert allclose(space_j, body_to_space(E, body_j), atol=1e-7)
+
+    print('')
+    print(body_j)
+    print(inv_adjoint(E).matmul(space_j))
+    assert allclose(body_j, space_to_body(E, space_j), atol=1e-6)
 
 
 def test_fkin_space():
@@ -1052,3 +1059,52 @@ def test_space_to_body():
 
     assert allclose(space_to_body(M, screws_space), screws_body)
     assert allclose(body_to_space(M, screws_body), screws_space)
+
+
+def test_manipuability():
+
+    W1, W2, L1, L2, H1, H2 = 0.109, 0.082, 0.425, 0.392, 0.089, 0.095  # m
+
+    s_list = tensor([
+        [0, 0, 1, 0, 0, 0],
+        [0, 1, 0, -H1, 0, 0],
+        [0, 1, 0, -H1, 0, L1],
+        [0, 1, 0, -H1, 0, L1 + L2],
+        [0, 0, -1, -W1, L1 + L2, 0],
+        [0, 1, 0, -H1 + H2, 0, L1 + L2]
+    ]).T
+
+    M = torch.tensor([
+        [-1, 0, 0, L1 + L2],
+        [0, 0, 1, W1 + W2],
+        [0, 1, 0, H1 - H2],
+        [0, 0, 0, 1],
+    ], dtype=torch.float)
+
+    theta = torch.ones(6)
+
+    js = jacobian_space(s_list, theta)
+
+    angular_js = js[0:3]
+    vel_js = js[3:6]
+
+    # print('')
+    # print(angular_js)
+    # print(vel_js)
+
+
+    assert singular(angular_js)
+    E = fkin_space(M, s_list, theta)
+    pos = E[0:3, 3]
+    pos = _v(pos)
+    A, lam, v = manipualibility_ellipsoid(angular_js)
+    lengths = lam.sqrt()
+    axis = _v(v[:, 0])
+
+    ellipsoid(pos=pos, axis=axis,
+              length=lengths[0, 0].item(),
+              height=lengths[1, 0].item(),
+              width=lengths[2, 0].item())
+
+
+
