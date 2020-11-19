@@ -51,9 +51,9 @@ def tm(x=0.0, y=0.0, z=0.0, R=None):
 
 class FrameViz:
     def __init__(self, thickness=0.1):
-        self.x_arrow = arrow(thickness=thickness, color=vector(0.1, 0.1, 0.5))
-        self.y_arrow = arrow(thickness=thickness, color=vector(0.5, 0.5, 0.1))
-        self.z_arrow = arrow(thickness=thickness, color=vector(0.5, 0.1, 0.1))
+        self.x_arrow = arrow(thickness=thickness, color=vector(1.0, 0.1, 0.1))
+        self.y_arrow = arrow(thickness=thickness, color=vector(0.1, 1.0, 0.1))
+        self.z_arrow = arrow(thickness=thickness, color=vector(0.1, 0.1, 1.0))
 
     def update(self, frame, length=None):
         """
@@ -73,17 +73,16 @@ class FrameViz:
 
 
 class RobotViz:
-    def __init__(self, joint_home_list, s_list, joints_facing):
+    def __init__(self, joint_home_list, s_list):
 
         self.joints = joint_home_list
-        self.joints_facing = joints_facing
         self.n_joints = len(joint_home_list)
         self.screws = s_list
 
         self.scene = canvas(width=1200, height=1200)
         self.scene.camera.pos = vector(0, -2.4, -0.2)
         self.scene.camera.axis = vector(0, 2.4, 0.27)
-        self.scene.camera.up = vector(0, 1, 0)
+        self.scene.camera.up = vector(0, -1, 0)
 
         self.joints_viz = [cylinder(axis=vector(0, 0, 0.0), radius=0.04, color=vector(0.1, 0.3, 0.4), visible=False)
                            for _ in range(self.n_joints)]
@@ -100,16 +99,21 @@ class RobotViz:
         prev_joint_pos = vector(0, 0, 0)
         end_frame = None
 
-        for tf, j, jv, jf, lv in zip(ts, self.joints, self.joints_viz, self.joints_facing, self.links_viz):
+        for tf, j, jv, lv in zip(ts, self.joints, self.joints_viz, self.links_viz):
             tb = tb.matmul(tf)
             joint_frame = tb.matmul(j).matmul(frame)
             jv.visible = True
             jv.pos = origin(joint_frame)
-            jv.axis = (jf(joint_frame) - origin(joint_frame)) * 0.05
+            jv.axis = (z_axis(joint_frame) - origin(joint_frame)) * 0.05
             if lv:
                 lv.visible = True
                 lv.pos = prev_joint_pos
-                lv.axis = jv.pos - prev_joint_pos
+                axis = jv.pos - prev_joint_pos
+                if axis.mag == 0:
+                    lv.visible = False
+                else:
+                    lv.axis = axis
+
             prev_joint_pos = origin(joint_frame)
             end_frame = joint_frame
 
