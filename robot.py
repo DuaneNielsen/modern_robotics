@@ -97,14 +97,13 @@ def jacobian_body(b_list, theta_list):
 
 
 def singular(jac):
-    """ checks if a 6 x 6 jacobian is singular (ie: linearly independent) """
+    """ checks if a 6 x 6 jacobian is singular (ie: not linearly independent) """
     with torch.no_grad():
         try:
-            A = jac.matmul(jac.T).inverse()
-            torch.cholesky(A)
+            torch.cholesky(jac)
         except Exception:
-            return False
-        return True
+            return True
+        return False
 
 
 def manipualibility_ellipsoid(jac):

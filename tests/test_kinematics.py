@@ -1092,7 +1092,6 @@ def test_manipuability():
     # print(angular_js)
     # print(vel_js)
 
-
     assert singular(angular_js)
     E = fkin_space(M, s_list, theta)
     pos = E[0:3, 3]
@@ -1107,4 +1106,47 @@ def test_manipuability():
               width=lengths[2, 0].item())
 
 
+def test_jac_kuka():
 
+    L1, L2, L3, L4 = 0.34, 0.4, 0.4, 0.15
+
+    s_list = tensor([
+        [0., 0., 1., 0., 0., 0.],
+        [1., 0., 0., 0., L1, 0.],
+        [0., 0., 1., 0., 0., 0.],
+        [1., 0., 0., 0., L1+L2, 0.],
+        [0., 0., 1., 0., 0., 0.],
+        [1., 0., 0., 0., L1+L2+L3, 0.],
+        [0., 0., 1., 0., 0., 0.],
+    ]).T
+
+    theta_list = torch.zeros(7)
+
+    js_home_exp = tensor([
+        [0., 0., 1., 0., 0., 0.],
+        [1., 0., 0., 0., 0.34, 0.],
+        [0., 0., 1., 0., 0., 0.],
+        [1., 0., 0., 0., 0.74, 0.],
+        [0., 0., 1., 0., 0., 0.],
+        [1., 0., 0., 0., 1.14, 0.],
+        [0., 0., 1., 0., 0., 0.],
+    ]).T
+
+    assert allclose(js_home_exp, s_list)
+
+    js_home = jacobian_space(s_list, theta_list)
+    assert(js_home, js_home_exp)
+    print('')
+    print(js_home)
+    print(js_home_exp)
+    u, s, v = torch.svd(js_home)
+    print(s)
+
+    theta_list = torch.linspace(1, 7, 7) * pi / 16
+    js_home = jacobian_space(s_list, theta_list)
+    assert(js_home, js_home_exp)
+    print('')
+    print(js_home)
+    print(js_home_exp)
+    u, s, v = torch.svd(js_home)
+    print(s)

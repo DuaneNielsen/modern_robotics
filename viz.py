@@ -1,5 +1,6 @@
 import torch
 from vpython import arrow, vector, canvas, cylinder, rate, sphere
+from robot import jacobian_space
 from se3 import matrix_exp_screw
 from math import pi
 
@@ -51,9 +52,9 @@ def tm(x=0.0, y=0.0, z=0.0, R=None):
 
 class FrameViz:
     def __init__(self, thickness=0.1):
-        self.x_arrow = arrow(thickness=thickness, color=vector(1.0, 0.1, 0.1))
-        self.y_arrow = arrow(thickness=thickness, color=vector(0.1, 1.0, 0.1))
-        self.z_arrow = arrow(thickness=thickness, color=vector(0.1, 0.1, 1.0))
+        self.x_arrow = arrow(thickness=thickness, color=vector(1.0, 0.1, 0.1), visible=False)
+        self.y_arrow = arrow(thickness=thickness, color=vector(0.1, 1.0, 0.1), visible=False)
+        self.z_arrow = arrow(thickness=thickness, color=vector(0.1, 0.1, 1.0), visible=False)
 
     def update(self, frame, length=None):
         """
@@ -66,10 +67,15 @@ class FrameViz:
             length = vector(0.3, 0.3, 0.3)
         self.x_arrow.pos = origin(frame)
         self.x_arrow.axis = (x_axis(frame) - origin(frame)) * length.x
+        self.x_arrow.visible = True
+
         self.y_arrow.pos = origin(frame)
         self.y_arrow.axis = (y_axis(frame) - origin(frame)) * length.y
+        self.y_arrow.visible = True
+
         self.z_arrow.pos = origin(frame)
         self.z_arrow.axis = (z_axis(frame) - origin(frame)) * length.z
+        self.z_arrow.visible = True
 
 
 class RobotViz:
@@ -89,8 +95,6 @@ class RobotViz:
         self.links_viz = [None]
         self.links_viz += [cylinder(radius=0.03, color=vector(0.6, 0.6, 0.6), visible=False) for _ in range(self.n_joints-1)]
 
-        self.end_effector_viz = FrameViz(thickness=0.02)
-
     def update(self, theta, fps=24):
 
         ts = [matrix_exp_screw(self.screws[:, i], theta[i]) for i in range(self.n_joints)]
@@ -102,6 +106,7 @@ class RobotViz:
         for tf, j, jv, lv in zip(ts, self.joints, self.joints_viz, self.links_viz):
             tb = tb.matmul(tf)
             joint_frame = tb.matmul(j).matmul(frame)
+
             jv.visible = True
             jv.pos = origin(joint_frame)
             jv.axis = (z_axis(joint_frame) - origin(joint_frame)) * 0.05
@@ -118,4 +123,4 @@ class RobotViz:
             end_frame = joint_frame
 
         rate(fps)
-        self.end_effector_viz.update(end_frame)
+        return end_frame
