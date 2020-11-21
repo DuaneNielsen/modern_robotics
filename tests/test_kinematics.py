@@ -1096,7 +1096,7 @@ def test_manipuability():
     E = fkin_space(M, s_list, theta)
     pos = E[0:3, 3]
     pos = _v(pos)
-    A, lam, v = manipualibility_ellipsoid(angular_js)
+    A, lam, v = manip_ellipsoid(angular_js)
     lengths = lam.sqrt()
     axis = _v(v[:, 0])
 
