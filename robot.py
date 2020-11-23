@@ -1,7 +1,8 @@
 import torch
 
-from se3 import matrix_exp_screw, adjoint, inv_adjoint
+from se3 import matrix_exp_screw, adjoint, inv_adjoint, matrix_log_transform, twist_vector, rotation, translation
 
+from math import degrees
 
 def fkin_space(M, s_list, theta_list):
     """
@@ -118,3 +119,29 @@ def manip_ellipsoid(jac):
     axis = v[:, 0]
 
     return lengths, axis
+
+
+def ikin_body(b_list, M, Tsd, theta_list_0, eomg, ev, maxcount=10):
+
+    count = 0
+
+    while count < maxcount:
+        print([degrees(theta) for theta in theta_list_0])
+        Tsb = fkin_body(M, b_list, theta_list_0)
+        jb = jacobian_body(b_list, theta_list_0)
+
+        # compute the twist from end effector Tsb to desired position Tsd
+        Tbd = Tsb.inverse().matmul(Tsd)
+        Vb, mag = matrix_log_transform(Tbd)
+        Vb = twist_vector(Vb * mag)
+
+        # if twist is small, we are done
+        if Vb[0:3].norm() < eomg and Vb[3:6].norm() < ev:
+            return theta_list_0
+
+        # take a full gradient descent step
+        delta = jb.pinverse().matmul(Vb)
+        theta_list_0 += delta
+        count += 1
+
+    return theta_list_0
